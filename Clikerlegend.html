@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clicker Legends 🪖</title>
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #313f52;
+            color: white;
+            user-select: none; /* Prevent text selection */
+        }
+        .container {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        .bouncing-circle {
+            width: 100px;
+            height: 100px;
+            background-color: lightblue;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: black;
+            cursor: pointer;
+            animation: bounce 1s infinite alternate ease-in-out;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-20px); }
+        }
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: particleAnimation 0.5s forwards;
+        }
+        @keyframes particleAnimation {
+            0% {
+                transform: scale(0) translate(0, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1) translate(var(--x), var(--y));
+                opacity: 0;
+            }
+        }
+        .shop-button, .bubble-button {
+            font-size: 18px;
+            margin: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 50px;
+            background-color: rgba(173, 216, 230, 0.8);
+            color: black;
+            cursor: pointer;
+            display: block;
+            transition: background-color 0.3s ease;
+        }
+        .shop-button:hover, .bubble-button:hover {
+            background-color: rgb(46, 128, 238);
+            animation: rgbHover 1s infinite alternate;
+        }
+        @keyframes rgbHover {
+            0% { background-color: rgb(46, 128, 238); }
+            25% { background-color: #ff8c00; }
+            50% { background-color: #ffdd00; }
+            75% { background-color: #00ff00; }
+            100% { background-color: #ff1493; }
+        }
+        #shop {
+            display: none;
+        }
+        .autoclicker-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: red;
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 10px;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        .reset-confirmation {
+            background-color: red;
+            color: white;
+            padding: 10px;
+            font-size: 20px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clicker Legends 🪖</h1>
+        <p>Clicks: <span id="clicks">0</span></p>
+        <p>Current Rank: <span id="rank">Private</span></p>
+        <div class="bouncing-circle" onclick="clickButton()">Hit me!</div>
+        
+        <h2>Shop</h2>
+        <button class="shop-button" onclick="toggleShop()">Shop</button>
+        <div id="shop">
+            <h3>Ranks</h3>
+            <button class="bubble-button" onclick="buyRank('Private', 0)">Private - Cost: 0</button>
+            <button class="bubble-button" onclick="buyRank('Sergeant', 100)">Sergeant - Cost: 100</button>
+            <button class="bubble-button" onclick="buyRank('Lieutenant', 500)">Lieutenant - Cost: 500</button>
+            <button class="bubble-button" onclick="buyRank('Captain', 1000)">Captain - Cost: 1000</button>
+            
+            <h3>Upgrades</h3>
+            <button class="bubble-button" onclick="buyUpgrade()">Upgrade Click (+1 per click) - Cost: <span id="upgradeCost">50</span></button>
+            <button class="bubble-button" onclick="buyUpgrade2()">Upgrade Click (+2 per click) - Cost: 150</button>
+            <button class="bubble-button" onclick="buyMegaUpgrade()">Mega Upgrade (+10 per click) - Cost: 2000</button>
+            <button class="bubble-button" onclick="buySpeedUpgrade()">Speed Upgrade (Faster Clicks) - Cost: 1000</button>
+            <button class="bubble-button" onclick="buyAutoClicker()">Auto Clicker (Automatically clicks!) - Cost: 5000</button>
+        </div>
+        
+        <h3>Reset Game</h3>
+        <button class="bubble-button" onmouseover="startFlash()" onmouseout="stopFlash()" onclick="resetConfirmation()">Reset Game</button>
+    </div>
+
+    <script>
+        let clicks = 0;
+        let clickValue = 1;
+        let rank = "Private";
+        let upgradeCost = 50;
+        let superUpgradeCost = 500;
+        let upgrade2Cost = 150;
+        let megaUpgradeCost = 2000;
+        let speedUpgradeCost = 1000;
+        let autoClickerCost = 5000;
+        let lastClickTime = 0;
+        let clickInterval = 0;
+        let isAutoclickerDetected = false;
+        const autoclickThreshold = 100; 
+        const detectionMessageDuration = 3000; 
+        let autoClickerInterval;
+        let resetInProgress = false;
+
+        function clickButton() {
+            const currentTime = new Date().getTime();
+            const timeDifference = currentTime - lastClickTime;
+            
+            if (timeDifference < autoclickThreshold) {
+                if (!isAutoclickerDetected) {
+                    isAutoclickerDetected = true;
+                    displayAutoclickerMessage();
+                    resetGame();
+                }
+            }
+            lastClickTime = currentTime;
+
+            clicks += clickValue;
+            updateDisplay();
+            createParticles(event);  
+            enlargeButton();  
+            saveGameState();  
+        }
+
+        function displayAutoclickerMessage() {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('autoclicker-message');
+            messageElement.innerText = "Autoclicker detected! Resetting game...";
+            document.body.appendChild(messageElement);
+
+            setTimeout(() => {
+                messageElement.remove();
+            }, detectionMessageDuration);
+        }
+
+        function toggleShop() {
+            let shop = document.getElementById("shop");
+            shop.style.display = (shop.style.display === "none" || shop.style.display === "") ? "block" : "none";
+        }
+
+        function updateDisplay() {
+            document.getElementById("clicks").innerText = clicks;
+            document.getElementById("rank").innerText = rank;
+            document.getElementById("upgradeCost").innerText = upgradeCost;
+            document.getElementById("superUpgradeCost").innerText = superUpgradeCost;
+        }
+
+        function saveGameState() {
+            const gameState = {
+                clicks,
+                clickValue,
+                rank,
+                upgradeCost,
+                superUpgradeCost,
+                upgrade2Cost,
+                megaUpgradeCost,
+                speedUpgradeCost,
+                autoClickerCost
+            };
+            localStorage.setItem('gameState', JSON.stringify(gameState));
+        }
+
+        function loadGameState() {
+            const savedState = JSON.parse(localStorage.getItem('gameState'));
+            if (savedState) {
+                clicks = savedState.clicks;
+                clickValue = savedState.clickValue;
+                rank = savedState.rank;
+                upgradeCost = savedState.upgradeCost;
+                superUpgradeCost = savedState.superUpgradeCost;
+                upgrade2Cost = savedState.upgrade2Cost;
+                megaUpgradeCost = savedState.megaUpgradeCost;
+                speedUpgradeCost = savedState.speedUpgradeCost;
+                autoClickerCost = savedState.autoClickerCost;
+                updateDisplay();
+            }
+        }
+
+        window.onload = loadGameState;
+
+        function buyRank(rankName, cost) {
+            if (clicks >= cost) {
+                clicks -= cost;
+                rank = rankName;
+                updateDisplay();
+                saveGameState();
+            }
+        }
+
+        function buyUpgrade() {
+            if (clicks >= upgradeCost) {
+                clicks -= upgradeCost;
+                clickValue++;
+                upgradeCost = Math.floor(upgradeCost * 1.5);
+                updateDisplay();
+            }
+        }
+
+        function buyUpgrade2() {
+            if (clicks >= upgrade2Cost) {
+                clicks -= upgrade2Cost;
+                clickValue += 2;
+                upgrade2Cost = Math.floor(upgrade2Cost * 1.5);
+                updateDisplay();
+            }
+        }
+
+        function buyMegaUpgrade() {
+            if (clicks >= megaUpgradeCost) {
+                clicks -= megaUpgradeCost;
+                clickValue += 10;
+                megaUpgradeCost = Math.floor(megaUpgradeCost * 1.5);
+                updateDisplay();
+            }
+        }
+
+        function buySpeedUpgrade() {
+            if (clicks >= speedUpgradeCost) {
+                clicks -= speedUpgradeCost;
+                clickInterval = Math.max(clickInterval - 50, 0);
+                speedUpgradeCost = Math.floor(speedUpgradeCost * 1.5);
+                updateDisplay();
+            }
+        }
+
+        function buyAutoClicker() {
+            if (clicks >= autoClickerCost) {
+                clicks -= autoClickerCost;
+                autoClickerInterval = setInterval(clickButton, 1000); 
+                autoClickerCost = Math.floor(autoClickerCost * 1.5);
+                updateDisplay();
+            }
+        }
+
+        function startFlash() {
+            const button = document.querySelector('button[onclick="resetConfirmation()"]');
+            button.style.backgroundColor = "red";
+            flashInterval = setInterval(() => {
+                button.style.backgroundColor = button.style.backgroundColor === "red" ? "darkred" : "red";
+            }, 500);
+        }
+
+        function stopFlash() {
+            clearInterval(flashInterval);
+            const button = document.querySelector('button[onclick="resetConfirmation()"]');
+            button.style.backgroundColor = '';
+        }
+
+        function resetConfirmation() {
+            if (confirm("Are you sure you want to reset the game? This action cannot be undone.")) {
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            clicks = 0;
+            clickValue = 1;
+            rank = "Private";
+            updateDisplay();
+            saveGameState();
+            if (autoClickerInterval) {
+                clearInterval(autoClickerInterval);
+            }
+            isAutoclickerDetected = false;
+        }
+    </script>
+</body>
+</html>
+
+
+
